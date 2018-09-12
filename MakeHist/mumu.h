@@ -21,9 +21,21 @@ public :
 
 // Fixed size dimensions of array or collections stored in the TTree if any.
 
-   //Define totalN and Lumi
+   //Define cross-section(fb), totalN and Lumi(fb^-1)
    Float_t         Lumi = 35.9;
 
+   Float_t         zp200_cs = 0.5125 * 1000;
+   Float_t         zp350_cs = 0.06838 * 1000;
+   Float_t         zp500_cs = 0.01628 * 1000;
+   Float_t         TT_cs = 76.7 * 1000;
+   Float_t         DY_cs = 5941.0 * 1000;
+   Float_t         ST_top_cs = 38.09 * 1000;
+   Float_t         ST_antitop_cs = 38.06 * 1000;
+   Float_t         WW_cs = 10.48 * 1000;
+   Float_t         WZ_cs = 23.43 * 1000;
+   Float_t         ZZ_cs = 10.16 * 1000;
+
+   Float_t         zp_totalN = 10000;
    Float_t         TT_totalN = 79092400;
    Float_t         DY_totalN = 122055388;
    Float_t         ZZ_totalN = 990064;
@@ -31,7 +43,17 @@ public :
    Float_t         WW_totalN = 1999000;
    Float_t         ST_top_totalN = 6952830;
    Float_t         ST_antitop_totalN = 6933094;
-   
+
+   //signal cross-section (7 page): https://indico.cern.ch/event/717002/contributions/2947604/attachments/1622674/2582782/2018Mar26_MCI.pdf
+   //The background cross-section refers to the DAS(xsdb).
+   //TT:  https://cms-gen-dev.cern.ch/xsdb/?searchQuery=DAS=TTTo2L2Nu_TuneCUETP8M2_ttHtranche3_13TeV-powheg-pythia8
+   //DY:  https://cms-gen-dev.cern.ch/xsdb/?searchQuery=DAS=DYJetsToLL_M-50_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8
+   //ST_top:  https://cms-gen-dev.cern.ch/xsdb/?searchQuery=DAS=ST_tW_top_5f_inclusiveDecays_13TeV-powheg-pythia8_TuneCUETP8M1
+   //ST_antitop:  https://cms-gen-dev.cern.ch/xsdb/?searchQuery=DAS=ST_tW_antitop_5f_inclusiveDecays_13TeV-powheg-pythia8_TuneCUETP8M1
+   //WW:  https://cms-gen-dev.cern.ch/xsdb/?searchQuery=DAS=WWTo2L2Nu_13TeV-powheg
+   //WZ:  https://cms-gen-dev.cern.ch/xsdb/?searchQuery=DAS=WZ_TuneCUETP8M1_13TeV-pythia8
+   //ZZ:  https://cms-gen-dev.cern.ch/xsdb/?searchQuery=DAS=ZZ_TuneCUETP8M1_13TeV-pythia8
+
    // Declaration of leaf types
    UInt_t          run;
    UInt_t          lumi;
@@ -200,9 +222,6 @@ public :
    Float_t         jet_eta[10];
    Float_t         jet_phi[10];
    Float_t         jet_btag[10];
-   Float_t         jet_px[10];
-   Float_t         jet_py[10];
-   Float_t         jet_pz[10];
    Float_t         jet_E[10];
    Float_t         genWeight;
    Float_t         gen_res_mass;
@@ -403,9 +422,6 @@ public :
    TBranch        *b_jet_eta;   //!
    TBranch        *b_jet_phi;   //!
    TBranch        *b_jet_btag;   //!
-   TBranch        *b_jet_px;   //!
-   TBranch        *b_jet_py;   //!
-   TBranch        *b_jet_pz;   //!
    TBranch        *b_jet_E;   //!
    TBranch        *b_genWeight;   //!
    TBranch        *b_gen_res_mass;   //!
@@ -493,12 +509,43 @@ mumu::mumu(TTree *tree) : fChain(0)
 // if parameter tree is not specified (or zero), connect the file
 // used to generate this class and read the Tree.
    if (tree == 0) {
-      TFile *f = (TFile*)gROOT->GetListOfFiles()->FindObject("/afs/cern.ch/work/h/hyeahyun/public/signal/zp500.root");
-      if (!f || !f->IsOpen()) {
-         f = new TFile("/afs/cern.ch/work/h/hyeahyun/public/signal/zp500.root");
-      }
-      f->GetObject("SimpleNtupler/t",tree);
 
+       TString sig_tag = "/cms/ldap_home/hyeahyun/signal/sample";
+       TString bkg_tag = "/xrootd/store/user/hyeahyun";
+       TString Ntuple_Location = "/*.root/SimpleNtupler/t";
+       TString inFile_TT = "/TTTo2L2Nu_TuneCUETP8M2_ttHtranche3_13TeV-powheg-pythia8/crab_20180802_173830/180802_083858";
+       TString inFile_DY = "/DYJetsToLL_M-50_TuneCUETP8M1_13TeV-amcatnloFXFX-pythia8/crab_20180802_173248/180802_083321";
+       TString inFile_ST_top = "/ST_tW_top_5f_inclusiveDecays_13TeV-powheg-pythia8_TuneCUETP8M1/crab_20180802_174650/180802_084720";
+       TString inFile_ST_antitop = "/ST_tW_antitop_5f_inclusiveDecays_13TeV-powheg-pythia8_TuneCUETP8M1/crab_20180802_174253/180802_084322";
+       TString inFile_WW = "/xrootd/store/user/hyeahyun/WWTo2L2Nu_13TeV-powheg/crab_20180802_175210/180802_085237";
+       TString inFile_WZ = "/WZ_TuneCUETP8M1_13TeV-pythia8/crab_20180802_175436/180802_085635";
+       TString inFile_ZZ = "/ZZ_TuneCUETP8M1_13TeV-pythia8/crab_20180802_175916/180802_085945";
+       //In the case of signal..
+/*      TFile *f = (TFile*)gROOT->GetListOfFiles()->FindObject(sig_tag + "/zp2mu_zp200_histos.root");
+      if (!f || !f->IsOpen()) {
+         f = new TFile(sig_tag + "/zp2mu_zp200_histos.root");
+      }
+      TDirectory * dir = (TDirectory*)f->Get(sig_tag + "/zp2mu_zp200_histos.root:/SimpleNtupler");
+      dir->GetObject("t",tree);
+*/
+
+       //In the case of background..
+#ifdef SINGLE_TRmumu
+       TFile *f = (TFile*)gROOT->GetListOfFiles()->FindObject( bkg_tag + inFile_TT + "/0000/");
+       if (!f || !f->IsOpen()) {
+           f = new TFile(bkg_tag + inFile_TT + "/0000/");
+       }
+       f->GetObject("SimpleNtupler/t","");
+
+#else // SINGLE_TRmumu
+       // The following code should be used if you want this class to access a chain of trees.
+       TChain *chain = new TChain("SimpleNtupler/t","");
+
+       chain->Add(bkg_tag + inFile_TT + "/0000" + Ntuple_Location);
+       chain->Add(bkg_tag + inFile_TT + "/0001" + Ntuple_Location);
+
+       tree = chain;
+#endif // SINGLE_TRmumu
 
    }
    Init(tree);
@@ -713,9 +760,6 @@ void mumu::Init(TTree *tree)
    fChain->SetBranchAddress("jet_eta", jet_eta, &b_jet_eta);
    fChain->SetBranchAddress("jet_phi", jet_phi, &b_jet_phi);
    fChain->SetBranchAddress("jet_btag", jet_btag, &b_jet_btag);
-   fChain->SetBranchAddress("jet_px", jet_px, &b_jet_px);
-   fChain->SetBranchAddress("jet_py", jet_py, &b_jet_py);
-   fChain->SetBranchAddress("jet_pz", jet_pz, &b_jet_pz);
    fChain->SetBranchAddress("jet_E", jet_E, &b_jet_E);
    fChain->SetBranchAddress("genWeight", &genWeight, &b_genWeight);
    fChain->SetBranchAddress("gen_res_mass", &gen_res_mass, &b_gen_res_mass);
